@@ -1,0 +1,11 @@
+# Multi-Agent Deep Research System
+openai>=1.30.0
+tavily-python>=0.3.0
+qdrant-client>=1.9.0
+dashscope>=1.20.0
+python-dotenv>=1.0.0
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+rich>=13.7.0
+neo4j>=5.20.0
+pytest>=8.0.0
