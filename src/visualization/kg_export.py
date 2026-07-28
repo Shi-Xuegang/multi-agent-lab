@@ -1,4 +1,6 @@
-"""知识图谱导出为 Mermaid / HTML。"""
+"""知识图谱导出为 Mermaid / HTML。
+
+知识图谱三元组 → Mermaid 流程图 + 可独立打开的 HTML 图谱页面"""
 
 from __future__ import annotations
 
@@ -8,20 +10,20 @@ from typing import Iterable
 from src.models.schemas import EntityRelation
 
 
-def _safe_node(name: str) -> str:
-    node = "".join(ch if ch.isalnum() else "_" for ch in name)
+def _safe_node(name: str) -> str: # 生成 Mermaid 合法节点 ID
+    node = "".join(ch if ch.isalnum() else "_" for ch in name) # 遍历字符串，合法字符保留，其余全部替换为下划线
     return (node or "entity")[:48]
 
 
 def relations_to_mermaid(relations: Iterable[EntityRelation]) -> str:
     """将三元组转为 Mermaid flowchart。"""
-    lines = ["flowchart LR"]
-    seen_nodes: set[str] = set()
+    lines = ["flowchart LR"] # 初始化流程图横向布局 flowchart LR
+    seen_nodes: set[str] = set() # 集合去重
     count = 0
     for rel in relations:
         if count >= 40:
             break
-        s_id = _safe_node(rel.subject)
+        s_id = _safe_node(rel.subject) # 为主语、宾语生成安全 ID，不存在则新增节点定义
         o_id = _safe_node(rel.object)
         if s_id not in seen_nodes:
             lines.append(f'  {s_id}["{rel.subject[:40]}"]')

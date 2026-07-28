@@ -1,29 +1,21 @@
 """文本分块工具集，用于将长文档切分为适合嵌入和检索的小块。
-
 支持多种分块策略：固定长度、语义分割、递归分块。
 """
 
 from __future__ import annotations
-
 from typing import List
-
 from src.models.schemas import SearchResult
-
 
 class ChunkingStrategy:
     """分块策略基类"""
-
     def chunk(self, text: str) -> List[str]:
         """将文本切分为多个块"""
-        raise NotImplementedError
-
+        raise NotImplementedError  # 子类必须实现 chunk 方法
 
 class FixedLengthChunker(ChunkingStrategy):
     """固定长度分块策略
-
     将文本按固定字符数切分，简单但可能破坏语义完整性。
     """
-
     def __init__(self, chunk_size: int = 512, overlap: int = 0):
         self.chunk_size = chunk_size
         self.overlap = overlap
@@ -48,10 +40,8 @@ class FixedLengthChunker(ChunkingStrategy):
 
 class SemanticChunker(ChunkingStrategy):
     """语义分块策略
-
     基于句子边界和特定分隔符进行切分，尽可能保持语义完整性。
     """
-
     def __init__(self, max_chunk_size: int = 1024):
         self.max_chunk_size = max_chunk_size
 
@@ -96,7 +86,6 @@ class SemanticChunker(ChunkingStrategy):
 
 class RecursiveChunker(ChunkingStrategy):
     """递归分块策略
-
     基于文档结构或预先定义的分割点（如##、###标题）进行递归切分，
     适用于有结构的文档，如博客文章、Markdown文件。
     """
@@ -153,19 +142,17 @@ class RecursiveChunker(ChunkingStrategy):
             start = end
         return chunks
 
-
+# 解耦设计：向量存储层无需关心分块实现，直接调用工具函数完成文档预处理。
 def chunk_search_result(result: SearchResult, strategy: ChunkingStrategy) -> List[SearchResult]:
-    """对单个搜索结果进行分块处理
-
+    """对单个搜索结果进行分块处理，保留原网页标题、URL、相关性分数，仅替换 content 为切片文本。
     Args:
         result: 原始搜索结果
         strategy: 分块策略实例
-
     Returns:
         分块后的多个 SearchResult 列表
     """
     chunks = strategy.chunk(result.content)
-    return [
+    return [  # 使用列表推导式快速生成批量 SearchResult
         SearchResult(
             title=result.title,
             url=result.url,
@@ -175,18 +162,17 @@ def chunk_search_result(result: SearchResult, strategy: ChunkingStrategy) -> Lis
         for chunk in chunks
     ]
 
-
 def chunk_search_results(results: List[SearchResult], strategy: ChunkingStrategy) -> List[SearchResult]:
-    """对多个搜索结果并行分块处理
-
+    """对多个搜索结果并行分块处理，批量遍历检索列表，扁平化所有分块结果
+    
     Args:
         results: 搜索结果列表
         strategy: 分块策略实例
-
     Returns:
         合并后的所有分块结果列表
     """
     all_chunks = []
     for result in results:
+        # extend 扁平化嵌套列表，替代双层 for 循环 append，代码更简洁
         all_chunks.extend(chunk_search_result(result, strategy))
     return all_chunks

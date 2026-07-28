@@ -1,8 +1,11 @@
-"""研究报告自动评估指标。"""
+"""研究报告自动评估指标。
+多维度量化评估研究 Agent 输出报告质量，
+实现四大维度打分函数、加权综合分、可视化文本工具
+"""
 
 from __future__ import annotations
 
-import re
+import re  # 正则表达式，提取文本中的引用标记
 from typing import Any
 
 from src.models.schemas import EvaluationScores, ResearchReport, ResearchTask
@@ -36,6 +39,7 @@ def evaluate_report(
     citation_density = _score_citation_density(report)
     reflection = _score_reflection(report.verify_rounds)
 
+    # 加权综合分，权重业务化定义
     overall = (
         completeness * 0.35
         + accuracy * 0.30
@@ -61,13 +65,14 @@ def evaluate_report(
 
 def _score_completeness(report: ResearchReport, tasks: list[ResearchTask]) -> float:
     if tasks:
+        # 多Agent：基于任务完成率 + 关键发现奖励 + 未解决问题扣分
         done = sum(1 for t in tasks if t.status.value == "done")
         coverage = done / max(len(tasks), 1)
         finding_bonus = min(len(report.key_findings) / max(len(tasks), 1), 1.0)
         unresolved_penalty = min(len(report.unresolved_questions) * 0.08, 0.3)
         return max(0.0, min(100.0, (coverage * 70 + finding_bonus * 30) - unresolved_penalty * 100))
 
-    # 单 Agent 无任务时基于报告本身
+    # 单 Agent：基于报告内容本身，关键发现 + 摘要 + 未解决问题扣分
     base = 40.0
     base += min(len(report.key_findings) * 10, 40)
     base += 10 if report.summary else 0
@@ -77,12 +82,13 @@ def _score_completeness(report: ResearchReport, tasks: list[ResearchTask]) -> fl
 
 def _score_accuracy(report: ResearchReport, evidence_urls: set[str]) -> float:
     if not report.citations:
-        return 30.0 if evidence_urls else 0.0
+        return 30.0 if evidence_urls else 0.0  # 无引用时最低 0 分
 
     valid = 0
     for cite in report.citations:
         if not cite.url:
             continue
+        # 模糊匹配：链接包含/被包含均判定有效，适配域名/路径差异
         if cite.url in evidence_urls or any(
             cite.url in u or u in cite.url for u in evidence_urls
         ):
@@ -92,6 +98,7 @@ def _score_accuracy(report: ResearchReport, evidence_urls: set[str]) -> float:
 
 
 def _score_citation_density(report: ResearchReport) -> float:
+    # 综合文本内容：摘要 + 关键发现 + 章节内容
     text = " ".join(
         [report.summary, *report.key_findings, *report.sections]
     )
@@ -102,13 +109,15 @@ def _score_citation_density(report: ResearchReport) -> float:
     markers = len(re.findall(r"\[\d+\]", text))
     chars = max(len(text), 1)
     density_per_100 = (markers / chars) * 100
-    # 0.5+/100字视为较充足；映射到 0-100
+    # 密度归一化：每百字0.8个引用为满分阈值
     score = min(density_per_100 / 0.8, 1.0) * 70
+    # 额外奖励引用总数，最多30分
     score += min(len(report.citations) * 5, 30)
     return max(0.0, min(100.0, score))
 
 
 def _score_reflection(rounds: int) -> float:
+    # 自反思轮次得分：0轮0分，1轮40，2+轮100
     if rounds <= 0:
         return 40.0
     if rounds == 1:
@@ -117,7 +126,7 @@ def _score_reflection(rounds: int) -> float:
 
 
 def scores_to_radar_text(scores: EvaluationScores, width: int = 20) -> str:
-    """生成简易文本雷达/条形图。"""
+    """生成简易文本雷达/条形图，可视化评估结果。"""
     items = [
         ("完整性", scores.completeness),
         ("准确性", scores.accuracy),

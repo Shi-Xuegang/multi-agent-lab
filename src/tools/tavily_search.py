@@ -1,4 +1,7 @@
-"""Tavily 互联网搜索工具。"""
+"""Tavily 互联网搜索工具。
+
+第三方 SDK 封装模式：把外部 API 客户端包装在工具内部，隔离外部依赖
+"""
 
 from __future__ import annotations
 

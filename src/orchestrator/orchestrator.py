@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed # 实现多线程并行任务调度
+from pathlib import Path # 面向对象处理文件输出路径
 
 from src.agents.planner import PlannerAgent
 from src.agents.researcher import ResearcherAgent
@@ -13,6 +13,7 @@ from src.agents.verifier import VerifierAgent
 from src.graph.base import GraphStore
 from src.memory.user_preferences import user_preference_manager
 from src.models.schemas import ResearchReport, ResearchTask, TaskStatus
+# 可视化工具
 from src.visualization.kg_export import export_kg_html, relations_to_mermaid
 from src.visualization.mermaid import build_process_mermaid
 
@@ -38,28 +39,32 @@ class ResearchOrchestrator:
         self._synthesizer = synthesizer
         self._verifier = verifier
         self._graph = graph
-        self._max_verify_rounds = max_verify_rounds
-        self._concurrency = max(1, concurrency)
-        self._max_task_retries = max_task_retries
-        self._enable_visualization = enable_visualization
+        self._max_verify_rounds = max_verify_rounds  # 验证轮数
+        self._concurrency = max(1, concurrency) # 并发数
+        self._max_task_retries = max_task_retries # 重试次数
+        self._enable_visualization = enable_visualization # 可视化开关
         self._output_dir = Path(output_dir)
         self._last_tasks: list[ResearchTask] = []
         self._events: list[str] = []
 
     @property
-    def events(self) -> list[str]:
+    def events(self) -> list[str]: # 记录全流程事件日志用于调试审计
         return list(self._events)
 
     @property
-    def last_tasks(self) -> list[ResearchTask]:
+    def last_tasks(self) -> list[ResearchTask]: 
+        """缓存最终任务列表，供评估框架读取打分"""
         return list(self._last_tasks)
 
+    # 核心入口
     def research(self, question: str, session_id: str | None = None) -> ResearchReport:
         """执行完整多 Agent 研究流水线。"""
+        # 1.研究初始化
         session_id = session_id or f"sess_{uuid.uuid4().hex[:10]}"
         self._events.clear()
         self._log(f"会话开始 session={session_id}")
 
+        # 2. 规划阶段：拆解任务DAG
         user_context = user_preference_manager.get_context_prompt()
         dag = self._planner.run(
             question=question,
@@ -68,7 +73,10 @@ class ResearchOrchestrator:
         )
         self._log(f"Planner 生成 {len(dag.tasks)} 个子任务")
 
+        # 3. 执行阶段：调度所有研究任务
         self._execute_pending_tasks(session_id)
+
+        # 4. 合成阶段：生成初稿报告
         report = self._synthesizer.run(
             question=question,
             session_id=session_id,
@@ -76,6 +84,7 @@ class ResearchOrchestrator:
         )
         self._log("Synthesizer 完成初稿")
 
+        # 5. 验证迭代循环
         verify_rounds = 0
         for round_idx in range(1, self._max_verify_rounds + 1):
             tasks = self._graph.get_tasks(session_id)
@@ -88,10 +97,12 @@ class ResearchOrchestrator:
                 f"Verifier 第 {round_idx} 轮: satisfied={verdict.satisfied}, "
                 f"issues={len(verdict.issues)}, supplements={len(verdict.supplement_tasks)}"
             )
+            # 提前终止：质量达标或无补充任务
             if verdict.satisfied or not verdict.supplement_tasks:
                 verify_rounds = round_idx
                 break
-
+            
+            # 追加补充任务，重新执行、重新合成
             self._graph.add_supplement_tasks(session_id, verdict.supplement_tasks)
             self._execute_pending_tasks(session_id)
             report = self._synthesizer.run(
@@ -101,6 +112,7 @@ class ResearchOrchestrator:
             )
             verify_rounds = round_idx
 
+        # 6. 后处理：填充报告属性、可视化、更新记忆
         tasks = self._graph.get_tasks(session_id)
         self._last_tasks = tasks
         relations = self._graph.get_relations(session_id)
@@ -132,8 +144,10 @@ class ResearchOrchestrator:
     def _execute_pending_tasks(self, session_id: str) -> None:
         """按 DAG 依赖并行执行可运行任务，直到没有 pending。"""
         while True:
+            # 1. 拉取最新任务状态，计算可运行/阻塞任务
             tasks = self._graph.get_tasks(session_id)
             status_map = {t.id: t.status for t in tasks}
+             # 可运行：待执行 + 所有依赖已完成
             runnable = [
                 t
                 for t in tasks
@@ -143,7 +157,7 @@ class ResearchOrchestrator:
                 )
             ]
 
-            # 依赖失败导致永久阻塞的任务标记失败
+            # 阻塞：待执行 + 存在依赖失败 → 直接标记失败
             blocked = [
                 t
                 for t in tasks
@@ -160,7 +174,8 @@ class ResearchOrchestrator:
                     error="依赖任务失败",
                 )
                 self._log(f"任务 {t.id} 因依赖失败而被跳过")
-
+            
+            # 2. 无可运行任务：检测死锁，结束调度
             if not runnable:
                 # 还有 pending 但依赖未完成 → 死锁，跳出
                 still_pending = [
@@ -176,22 +191,26 @@ class ResearchOrchestrator:
                             error="无法满足依赖，终止调度",
                         )
                 break
-
+            
+            # 3. 线程池并行执行当前可运行任务
             self._log(f"并行执行 {len(runnable)} 个任务: {[t.id for t in runnable]}")
+            # with 上下文管理器自动关闭线程池，资源安全
             with ThreadPoolExecutor(max_workers=self._concurrency) as pool:
                 futures = {
                     pool.submit(self._researcher.run, task=t, session_id=session_id): t
                     for t in runnable
                 }
+                # 逐个处理完成的任务
                 for fut in as_completed(futures):
                     task = futures[fut]
                     try:
-                        result = fut.result()
+                        result = fut.result() # 捕获子线程内部异常，主线程统一处理失败逻辑
                         if result.status == TaskStatus.FAILED:
                             self._maybe_retry(session_id, result)
                         else:
                             self._log(f"任务 {task.id} 完成，发现 {len(result.findings)} 条")
                     except Exception as exc:
+                        # 未捕获异常标记失败，进入重试逻辑
                         self._graph.update_task_status(
                             session_id, task.id, TaskStatus.FAILED, error=str(exc)
                         )
@@ -222,6 +241,7 @@ class ResearchOrchestrator:
     def _export_artifacts(
         self, session_id: str, question: str, report: ResearchReport
     ) -> None:
+        """自动创建输出目录，导出三类文件：执行流程图源码、知识图谱源码、交互式知识图谱 HTML"""
         self._output_dir.mkdir(parents=True, exist_ok=True)
         process_path = self._output_dir / f"{session_id}_process.mmd"
         process_path.write_text(report.process_diagram, encoding="utf-8")

@@ -18,6 +18,10 @@ def build_process_mermaid(
     生成研究过程图：
     子任务 DAG → 搜索来源 → 报告章节
     """
+    # 输入：顶层研究问题、子任务列表ResearchTask、可选报告章节列表
+    # 输出：纵向布局 flowchart TD 流程图文本
+    # 整体流程图结构分层：
+    # 顶层研究问题 → 各个子任务（带依赖关系DAG） → 子任务引用的检索数据源 → 最终报告与报告章节 
     lines = ["flowchart TD", '  Q["研究问题"]']
     q_label = question.replace('"', "'")[:60]
     lines.append(f'  Q === QLabel["{q_label}"]')

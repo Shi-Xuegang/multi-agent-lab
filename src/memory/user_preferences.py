@@ -11,14 +11,15 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field 
+# BaseModel 结构化数据校验、序列化；
+# Field、default_factory 处理可变默认参数
 
 from src.models.schemas import ToolExecutionResult
 
 
 class UserPreferences(BaseModel):
     """用户偏好设置"""
-
     # 用户基本信息
     username: str = Field(default="", description="用户名")
 
@@ -140,7 +141,7 @@ class UserPreferenceManager:
         if topic in history:
             history.remove(topic)
         history.append(topic)
-        self._preferences.research_history = history[-50:]
+        self._preferences.research_history = history[-50:] # 每次完成研究自动追加主题，去重、限制最多 50 条，最新主题置顶
         self._save_preferences()
 
     def _save_preferences(self) -> None:
@@ -150,7 +151,7 @@ class UserPreferenceManager:
                 json.dump(
                     self._preferences.model_dump(mode="json"),
                     f,
-                    ensure_ascii=False,
+                    ensure_ascii=False, # JSON 保留中文，便于人工查看配置文件
                     indent=2,
                 )
         except Exception as e:

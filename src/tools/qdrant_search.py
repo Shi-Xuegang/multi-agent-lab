@@ -1,4 +1,7 @@
-"""Qdrant 语义检索工具。"""
+"""Qdrant 语义检索工具。
+本地私有知识库检索，优先查向量库；
+外部新知识交给互联网搜索工具，构成「本地知识库优先 + 外网补充」的 RAG 双检索策略
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,8 @@ from src.tools.base import Tool
 class QdrantSearchTool(Tool):
     """从 Qdrant 中检索已存储文档（RAG 缓存）。"""
 
+    # 不直接在工具内部初始化 Qdrant 客户端，外部传入向量存储实例。
+    # 优势：解耦、方便单元测试、全局复用同一个向量库连接。
     def __init__(self, memory_store: QdrantMemoryStore) -> None:
         self._memory = memory_store
 
@@ -52,7 +57,7 @@ class QdrantSearchTool(Tool):
             limit = kwargs.get("limit", 5)
             score_threshold = kwargs.get("score_threshold", 0.7)
 
-            if not str(query).strip():
+            if not str(query).strip(): # 参数合法性校验（query 非空）；非法参数直接返回失败结构化结果
                 return ToolExecutionResult(
                     tool_name=self.name,
                     success=False,
@@ -78,7 +83,7 @@ class QdrantSearchTool(Tool):
                 success=True,
                 data={
                     "query": query,
-                    "results": [r.model_dump() for r in search_results],
+                    "results": [r.model_dump() for r in search_results], # 使用 model_dump() 转为字典，存入 data
                     "result_count": len(search_results),
                 },
             )

@@ -46,4 +46,5 @@ class Tool(ABC):
         }
 
     def __repr__(self) -> str:
+        """友好打印，调试时快速查看工具名称和描述。"""
         return f"<Tool name={self.name!r}>"
