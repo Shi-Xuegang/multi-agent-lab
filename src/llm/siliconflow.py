@@ -86,7 +86,7 @@ class SiliconFlowClient:
             for tc in message.tool_calls:
                 raw_args = tc.function.arguments or "{}"  # 取出 function 参数字符串，空则填充{}
                 try:
-                    arguments = json.loads(raw_args)
+                    arguments = json.loads(raw_args) # json.loads 转成 dict
                 except json.JSONDecodeError:
                     arguments = {}
                 if not isinstance(arguments, dict): # 强制校验参数必须是字典
@@ -106,7 +106,7 @@ class SiliconFlowClient:
             "finish_reason": response.choices[0].finish_reason,  # 结束原因（stop/tool_calls）
         }
 
-    def chat_json(
+    def chat_json(  # 结构化 JSON 输出
         self,
         messages: list[dict[str, Any]],
         temperature: float = 0.2,

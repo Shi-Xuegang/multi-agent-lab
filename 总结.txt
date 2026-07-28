@@ -1,0 +1,25 @@
+1、Pydantic 是什么？
+    是 Python 里基于 类型注解（type hints） 的数据校验与序列化库。
+    核心用法是继承 BaseModel，把「字典/JSON」变成强类型对象。
+    它主要做三件事：
+        校验：创建对象时自动检查字段类型、必填项、默认值
+        解析：把外部松散数据（API 返回、LLM JSON）转成可靠 Python 对象
+        序列化：用 model_dump() 导出 dict/JSON，方便存储、日志、回传 LLM
+    在 Agent 项目里，它解决的核心问题是：LLM 和工具返回的数据不稳定，模块之间需要统一的数据合同（data contract）。
+
+2、为什么不使用LangChain作为框架而要自研一个呢？
+        不是觉得 LangChain 不好，而是这个项目的目标是把 Multi-Agent 编排链路吃透并可控落地。
+        LangChain 抽象层厚、链路长，调试和定制成本高；
+        我更需要清晰的 Planner → Researcher → Synthesizer → Verifier 流程、显式 DAG 调度和可评估闭环，
+        所以用 Python 自研了一套轻量 Orchestrator + Tool 抽象。
+        对学习 Agent 原理和后续按业务裁剪，自研更合适。
+    我参考了业界常见的 Orchestrator / Plan-and-Execute / Reflection 思路，
+    接口上兼容 OpenAI Tool Calling 形态，后面如果要接入 LangGraph，也可以把现有 Agent 角色迁成节点，迁移成本可控。
+
+3、Field(default_factory=list) / Field(default_factory=dict):
+        每次新建对象时，都重新创建一个新的空列表.
+        Pydantic/数据类里，列表和字典默认值通常用 Field(default_factory=...)
+    为什么不直接写成 key_findings: list[str] = []？
+    因为列表是“可变对象”，直接写 [] 容易出问题。
+    
+4、

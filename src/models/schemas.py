@@ -32,7 +32,7 @@ class SearchResult(BaseModel):
     - Tavily 联网搜索
     - Qdrant 语义检索命中的缓存文档（字段结构保持一致，便于统一处理）
     """
-
+# 不管证据来自哪里，最后都尽量统一成同一种格式，方便后续处理。这叫做：统一上游输出格式
     title: str
     """网页或文档标题。"""
 
@@ -156,7 +156,7 @@ class ToolCallRecord(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(str, Enum): # 任务枚举：把任务状态限制在严格固定几个值里
     """子任务状态机。
 
     典型流转：
@@ -180,8 +180,10 @@ class TaskStatus(str, Enum):
 class ResearchTask(BaseModel):
     """研究子任务（DAG 中的一个节点）。
 
-    由 Planner 生成；Orchestrator 按 depends_on 调度；
-    Researcher 执行后回写 findings/sources；Verifier 可追加 is_supplement=True 的补充任务。
+    由 Planner 生成；
+    Orchestrator 按 depends_on 调度；
+    Researcher 执行后回写 findings/sources；
+    Verifier 可追加 is_supplement=True 的补充任务。
     """
 
     id: str
@@ -238,7 +240,7 @@ class TaskDag(BaseModel):
 # 知识图谱（实体关系抽取）
 # ---------------------------------------------------------------------------
 class EntityRelation(BaseModel):
-    """知识图谱三元组：(subject)-[predicate]->(object)。
+    """知识图谱三元组，实体关系：(subject)-[predicate]->(object)。
 
     由 KG 抽取器从证据中抽出，写入图存储，供 Synthesizer / 可视化使用。
     """

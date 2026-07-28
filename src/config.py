@@ -9,7 +9,7 @@ from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_ENV_FILE = _PROJECT_ROOT / ".env"
+_ENV_FILE = _PROJECT_ROOT / ".env"  # 拼接出 .env 完整路径
 
 
 class Settings(BaseSettings):
