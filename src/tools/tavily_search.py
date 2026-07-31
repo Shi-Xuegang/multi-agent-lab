@@ -1,5 +1,4 @@
 """Tavily 互联网搜索工具。
-
 第三方 SDK 封装模式：把外部 API 客户端包装在工具内部，隔离外部依赖
 """
 
@@ -17,7 +16,7 @@ class TavilySearchTool(Tool):
     """通过 Tavily API 搜索互联网信息。"""
 
     def __init__(self, api_key: str, max_results: int = 5) -> None:
-        self._client = TavilyClient(api_key=api_key)
+        self._client = TavilyClient(api_key=api_key)   # 创建 TavilyClient 实例，封装
         self._max_results = max_results
 
     @property
@@ -62,14 +61,14 @@ class TavilySearchTool(Tool):
             )
 
         try:
-            response = self._client.search(
+            response = self._client.search(  # 请求外网搜索
                 query=query,
                 search_depth=search_depth,
                 max_results=self._max_results,
-                include_answer=False,
+                include_answer=False,   # 只要网页结果列表，不要 Tavily 额外生成的综合答案
             )
 
-            results: list[SearchResult] = []
+            results: list[SearchResult] = [] # 搜索结果列表
             for item in response.get("results", []):
                 results.append(
                     SearchResult(
@@ -80,12 +79,12 @@ class TavilySearchTool(Tool):
                     )
                 )
 
-            return ToolExecutionResult(
+            return ToolExecutionResult(  # 返回成功结构化结果
                 tool_name=self.name,
                 success=True,
                 data={
                     "query": query,
-                    "results": [r.model_dump() for r in results],
+                    "results": [r.model_dump() for r in results], # 使用 model_dump() 转为字典，存入 data
                     "result_count": len(results),
                 },
             )

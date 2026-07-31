@@ -78,7 +78,6 @@ SUMMARIZE_PROMPT = """基于以下研究问题和收集到的证据，生成一�
 4. 所有输出使用中文
 """
 
-
 class ResearchAgent:
     """
     单 Agent 研究流水线。

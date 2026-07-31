@@ -23,7 +23,7 @@ def resolve_qdrant_vector_size(
     避免 .env 中 QDRANT_VECTOR_SIZE 与已有 collection / 嵌入模型不一致。
 
     本地新建集合使用 env 默认维度；
-复用历史集合自动读取历史维度，支持项目迭代、切换 Embedding 模型场景
+    复用历史集合自动读取历史维度，支持项目迭代、切换 Embedding 模型场景
     """
     try:
         client_kwargs: dict = {"url": url, "timeout": timeout}

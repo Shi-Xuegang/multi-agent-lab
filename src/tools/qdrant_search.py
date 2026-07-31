@@ -18,7 +18,7 @@ class QdrantSearchTool(Tool):
     # 不直接在工具内部初始化 Qdrant 客户端，外部传入向量存储实例。
     # 优势：解耦、方便单元测试、全局复用同一个向量库连接。
     def __init__(self, memory_store: QdrantMemoryStore) -> None:
-        self._memory = memory_store
+        self._memory = memory_store   # 创建 QdrantMemoryStore 实例，依赖注入
 
     @property
     def name(self) -> str:
@@ -64,12 +64,12 @@ class QdrantSearchTool(Tool):
                     error="搜索关键词 query 不能为空",
                 )
 
-            results = self._memory.search_similar(
+            results = self._memory.search_similar(  # 请求本地检索
                 query=query,
                 limit=limit,
                 score_threshold=score_threshold,
             )
-            search_results = [
+            search_results = [  # 搜索结果列表
                 SearchResult(
                     title=result["title"],
                     url=result["url"],
@@ -78,7 +78,7 @@ class QdrantSearchTool(Tool):
                 )
                 for result in results
             ]
-            return ToolExecutionResult(
+            return ToolExecutionResult(  # 返回成功结构化结果
                 tool_name=self.name,
                 success=True,
                 data={

@@ -28,11 +28,12 @@ class ToolRegistry:
         return self._tools.get(name) # 工具名存在，返回工具实例；工具名不存在，返回 None
 
     def list_tools(self) -> list[Tool]:
-        """返回所有已注册工具。"""
+        """返回所有已注册工具。工具实例的列表副本"""
         return list(self._tools.values()) 
 
     def to_openai_tools(self) -> list[dict]:
         """批量转换为 OpenAI function calling 格式。"""
+        # 对每个工具调用 base.py 里的 to_openai_tool()，拼成列表给 LLM
         return [tool.to_openai_tool() for tool in self._tools.values()]
 
     def execute(self, name: str, arguments: dict) -> ToolExecutionResult:
@@ -45,7 +46,7 @@ class ToolRegistry:
                 error=f"未找到工具: {name}",
             )
         try:
-            return tool.execute(**arguments)
+            return tool.execute(**arguments) # **arguments 把 dict 展开成关键字参数传给 tool.execute
         except Exception as exc:  # noqa: BLE001 — 工具层统一捕获并回传
             return ToolExecutionResult(
                 tool_name=name,

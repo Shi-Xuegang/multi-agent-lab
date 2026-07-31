@@ -1,4 +1,7 @@
-"""Qdrant 向量记忆存储。"""
+"""Qdrant 向量记忆存储。
+入库 + 语义检索 + URL 去重，支持分块与非分块两种模式。
+
+RAG / 缓存的底座，负责存储、检索、去重。"""
 
 from __future__ import annotations
 
@@ -53,14 +56,14 @@ class QdrantMemoryStore:
         self,
         url: str,
         collection_name: str,
-        embedder: BaseEmbedder, 
-        api_key: str = "",
-        vector_size: int = 1024,
-        distance: str = "cosine",
-        timeout: int = 30,
-        chunk_strategy: str = "semantic",
+        embedder: BaseEmbedder,   # （文本 → 向量）
+        api_key: str = "",   # Qdrant API 密钥
+        vector_size: int = 1024,   # 向量维度
+        distance: str = "cosine",   # 距离度量
+        timeout: int = 30,   # 超时时间
+        chunk_strategy: str = "semantic",   # 分块策略
     ) -> None:
-        client_kwargs: dict[str, Any] = {
+        client_kwargs: dict[str, Any] = {   # 客户端配置参数
             "url": url,
             "timeout": timeout,
         }
@@ -68,21 +71,21 @@ class QdrantMemoryStore:
             client_kwargs["api_key"] = api_key
 
         self._client = QdrantClient(**client_kwargs)
-        self._collection = collection_name
-        self._embedder = embedder
-        self._vector_size = vector_size
-        self._distance = _DISTANCE_MAP.get(distance.lower(), Distance.COSINE)
-        self._chunk_strategy = chunk_strategy
-        self._chunker = build_chunker(chunk_strategy)
-        self._ensure_collection()
+        self._collection = collection_name   # 集合名称
+        self._embedder = embedder   # （文本 → 向量）
+        self._vector_size = vector_size   # 向量维度
+        self._distance = _DISTANCE_MAP.get(distance.lower(), Distance.COSINE)  # 距离度量
+        self._chunk_strategy = chunk_strategy   # 分块策略
+        self._chunker = build_chunker(chunk_strategy)   # 构建分块器
+        self._ensure_collection()   # 确保集合存在
 
-    def _ensure_collection(self) -> None:
+    def _ensure_collection(self) -> None:  # 懒创建
         """确保 collection 存在，不存在则按配置创建。"""
         collections = [c.name for c in self._client.get_collections().collections]
         if self._collection not in collections:
             self._client.create_collection(
                 collection_name=self._collection,
-                vectors_config=VectorParams(
+                vectors_config=VectorParams( # 向量配置
                     size=self._vector_size,
                     distance=self._distance,
                 ),
@@ -190,7 +193,7 @@ class QdrantMemoryStore:
             )
         # upsert 批量写入 Qdrant
         self._client.upsert(collection_name=self._collection, points=points)
-        return len(points)
+        return len(points) # 返回实际入库条数
 
     def search_similar( # 语义检索
         self,
@@ -199,7 +202,7 @@ class QdrantMemoryStore:
         score_threshold: float = 0.7,
     ) -> list[dict[str, Any]]:
         """语义检索与 query 相似的已存储文档。"""
-        query_vector = self._embedder.embed_text(query)
+        query_vector = self._embedder.embed_text(query) #  把查询变成向量
 
         # qdrant-client >=1.12 起逐步废弃 search，1.18 已移除；统一走 query_points
         if hasattr(self._client, "query_points"):
