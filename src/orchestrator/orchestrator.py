@@ -61,7 +61,7 @@ class ResearchOrchestrator:
         """执行完整多 Agent 研究流水线。"""
         # 1.研究初始化
         session_id = session_id or f"sess_{uuid.uuid4().hex[:10]}"
-        self._events.clear()
+        self._events.clear() # 清空上一轮日志
         self._log(f"会话开始 session={session_id}")
 
         # 2. 规划阶段：拆解任务DAG
@@ -126,7 +126,8 @@ class ResearchOrchestrator:
         )
         report.kg_diagram = relations_to_mermaid(relations)
 
-        if self._enable_visualization:
+        if self._enable_visualization: 
+            # 若开可视化 → _export_artifacts 写文件
             self._export_artifacts(session_id, question, report)
 
         user_preference_manager.add_research_topic(question)
@@ -146,22 +147,24 @@ class ResearchOrchestrator:
         while True:
             # 1. 拉取最新任务状态，计算可运行/阻塞任务
             tasks = self._graph.get_tasks(session_id)
-            status_map = {t.id: t.status for t in tasks}
-             # 可运行：待执行 + 所有依赖已完成
-            runnable = [
+            status_map = {t.id: t.status for t in tasks} # 字典推导式：一次生成所有任务ID:任务状态
+
+            # 可运行：待执行 + 所有依赖已完成
+            runnable = [ # 列表推导：过滤出符合条件的任务列表
                 t
                 for t in tasks
                 if t.status == TaskStatus.PENDING
+                # all(可迭代)：里面全是 True 才 True；空依赖时 all([]) 为 True
                 and all(
                     status_map.get(dep) == TaskStatus.DONE for dep in t.depends_on
                 )
             ]
-
             # 阻塞：待执行 + 存在依赖失败 → 直接标记失败
             blocked = [
                 t
                 for t in tasks
                 if t.status == TaskStatus.PENDING
+                # any(可迭代)：里面有 True 就 True；空依赖时 any([]) 为 False
                 and any(
                     status_map.get(dep) == TaskStatus.FAILED for dep in t.depends_on
                 )
@@ -182,8 +185,8 @@ class ResearchOrchestrator:
                     t for t in self._graph.get_tasks(session_id)
                     if t.status == TaskStatus.PENDING
                 ]
-                if still_pending:
-                    for t in still_pending:
+                if still_pending: # not runnable 但仍有 pending → 死锁，跳出
+                    for t in still_pending: # 标记所有 pending 任务为 failed
                         self._graph.update_task_status(
                             session_id,
                             t.id,

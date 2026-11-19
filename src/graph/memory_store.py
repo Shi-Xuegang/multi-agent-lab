@@ -1,7 +1,6 @@
 """内存图存储，作为 Neo4j 不可用时的回退。
 纯 Python 字典模拟的进程内图存储，无任何外部依赖，作为 Neo4j 不可用时的降级方案；
 数据随进程销毁，适合本地调试、单用户 CLI 场景。
-
 """
 
 from __future__ import annotations

@@ -1,3 +1,12 @@
+1. schemas：数据合同（SearchResult / ToolExecutionResult / ResearchReport）
+2. config：Settings / get_settings / effective_llm_*
+3. llm：chat(可工具) / chat_json(结构化)
+4. tools：Tool接口 → Registry注册执行 → tavily外网 / qdrant本地
+5. embeddings：BaseEmbedder(embed_text/embed_batch) → 工厂创建
+6. memory：store入库 + search_similar检索（依赖 embedder）
+7. 单Agent：预检缓存 → chat工具循环 → tavily再拦缓存 → 报告
+
+
 1、Pydantic 是什么？
     是 Python 里基于 类型注解（type hints） 的数据校验与序列化库。
     核心用法是继承 BaseModel，把「字典/JSON」变成强类型对象。
@@ -8,7 +17,7 @@
     在 Agent 项目里，它解决的核心问题是：LLM 和工具返回的数据不稳定，模块之间需要统一的数据合同（data contract）。
 
 2、为什么不使用LangChain作为框架而要自研一个呢？
-        不是觉得 LangChain 不好，而是这个项目的目标是把 Multi-Agent 编排链路吃透并可控落地。
+        不是 LangChain 不好，而是这个项目的目标是把 Multi-Agent 编排链路吃透并可控落地。
         LangChain 抽象层厚、链路长，调试和定制成本高；
         我更需要清晰的 Planner → Researcher → Synthesizer → Verifier 流程、显式 DAG 调度和可评估闭环，
         所以用 Python 自研了一套轻量 Orchestrator + Tool 抽象。

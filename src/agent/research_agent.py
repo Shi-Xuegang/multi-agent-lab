@@ -138,11 +138,12 @@ class ResearchAgent:
             response = self._llm.chat(messages, tools=openai_tools)   # 调用大模型
 
             if not response["tool_calls"]:
-                if response["content"]:   # 如果模型返回了文本内容
+                if response["content"]:   # 如果模型直接返回了文本内容
                     report = self._build_report_from_text(question, response["content"])
                     self._finalize(question, report)   # 结束本轮研究
                     return report
-                break   # 如果没有工具调用，则结束本轮研究  
+                else:
+                    break   # 如果没有工具调用，且没有文本内容，则结束本轮研究  
 
             messages.append( 
                 {   # 添加助手消息
@@ -219,8 +220,8 @@ class ResearchAgent:
                     result=result,
                 )
                 self._tool_call_history.append(record)
-
-                messages.append(
+ 
+                messages.append( # 把工具结果喂回模型，下一轮才能继续想
                     {
                         "role": "tool",
                         "tool_call_id": tc["id"],

@@ -19,10 +19,10 @@ def evaluate_report(
     """
     计算评估分数（0-100）。
 
-    - completeness: 子任务覆盖 / 发现与章节充实度
-    - accuracy: 引用 URL 是否出现在证据来源中
-    - citation_density: 每 100 字引用密度（归一化）
-    - reflection_rounds: 自反思轮次得分
+    - completeness: 子任务覆盖 / 发现与章节充实度        0.35
+    - accuracy: 引用 URL 是否出现在证据来源中            0.3
+    - citation_density: 每 100 字引用密度（归一化）      0.2
+    - reflection_rounds: 自反思轮次得分                 0.15
     """
     tasks = tasks or []
     evidence_urls = evidence_urls or set()
@@ -71,13 +71,13 @@ def _score_completeness(report: ResearchReport, tasks: list[ResearchTask]) -> fl
         finding_bonus = min(len(report.key_findings) / max(len(tasks), 1), 1.0)
         unresolved_penalty = min(len(report.unresolved_questions) * 0.08, 0.3)
         return max(0.0, min(100.0, (coverage * 70 + finding_bonus * 30) - unresolved_penalty * 100))
-
-    # 单 Agent：基于报告内容本身，关键发现 + 摘要 + 未解决问题扣分
-    base = 40.0
-    base += min(len(report.key_findings) * 10, 40)
-    base += 10 if report.summary else 0
-    base -= min(len(report.unresolved_questions) * 5, 20)
-    return max(0.0, min(100.0, base))
+    else:
+        # 单 Agent：基于报告内容本身，关键发现 + 摘要 + 未解决问题扣分
+        base = 40.0
+        base += min(len(report.key_findings) * 10, 40)
+        base += 10 if report.summary else 0
+        base -= min(len(report.unresolved_questions) * 5, 20)
+        return max(0.0, min(100.0, base))
 
 
 def _score_accuracy(report: ResearchReport, evidence_urls: set[str]) -> float:
